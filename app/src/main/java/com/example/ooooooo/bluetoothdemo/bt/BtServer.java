@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 
+import com.example.ooooooo.bluetoothdemo.ble.BleServerActivity;
 import com.example.ooooooo.bluetoothdemo.util.Util;
 
 /**
@@ -25,7 +26,7 @@ public class BtServer extends BtBase {
         try {
             BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
 //            mSSocket = adapter.listenUsingRfcommWithServiceRecord(TAG, SPP_UUID); //加密传输，Android强制执行配对，弹窗显示配对码
-            mSSocket = adapter.listenUsingInsecureRfcommWithServiceRecord(TAG, SPP_UUID); //明文传输(不安全)，无需配对
+            mSSocket = adapter.listenUsingInsecureRfcommWithServiceRecord(TAG, BleServerActivity.UUID_SERVICE); //明文传输(不安全)，无需配对
             // 开启子线程
             Util.EXECUTOR.execute(new Runnable() {
                 @Override

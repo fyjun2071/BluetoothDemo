@@ -1,6 +1,7 @@
 package com.example.ooooooo.bluetoothdemo.ble;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
@@ -20,6 +21,7 @@ import com.example.ooooooo.bluetoothdemo.APP;
 import com.example.ooooooo.bluetoothdemo.R;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 
@@ -28,6 +30,20 @@ import java.util.UUID;
  */
 public class BleClientActivity extends Activity {
     private static final String TAG = BleClientActivity.class.getSimpleName();
+
+    /**
+     * uart服务
+     */
+    public final static UUID UARTSERVICE_SERVICE_UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+    /**
+     * 写
+     */
+    public final static UUID UART_RX_CHARACTERISTIC_UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+    /**
+     * 读
+     */
+    public final static UUID UART_TX_CHARACTERISTIC_UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
+
     private EditText mWriteET;
     private TextView mTips;
     private BleDevAdapter mBleDevAdapter;
@@ -155,9 +171,9 @@ public class BleClientActivity extends Activity {
     // 注意：连续频繁读写数据容易失败，读写操作间隔最好200ms以上，或等待上次回调完成后再进行下次读写操作！
     // 读取数据成功会回调->onCharacteristicChanged()
     public void read(View view) {
-        BluetoothGattService service = getGattService(BleServerActivity.UUID_SERVICE);
+        BluetoothGattService service = getGattService(UARTSERVICE_SERVICE_UUID);
         if (service != null) {
-            BluetoothGattCharacteristic characteristic = service.getCharacteristic(BleServerActivity.UUID_CHAR_READ_NOTIFY);//通过UUID获取可读的Characteristic
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);//通过UUID获取可读的Characteristic
             mBluetoothGatt.readCharacteristic(characteristic);
         }
     }
@@ -165,10 +181,10 @@ public class BleClientActivity extends Activity {
     // 注意：连续频繁读写数据容易失败，读写操作间隔最好200ms以上，或等待上次回调完成后再进行下次读写操作！
     // 写入数据成功会回调->onCharacteristicWrite()
     public void write(View view) {
-        BluetoothGattService service = getGattService(BleServerActivity.UUID_SERVICE);
+        BluetoothGattService service = getGattService(UARTSERVICE_SERVICE_UUID);
         if (service != null) {
             String text = mWriteET.getText().toString();
-            BluetoothGattCharacteristic characteristic = service.getCharacteristic(BleServerActivity.UUID_CHAR_WRITE);//通过UUID获取可写的Characteristic
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);//通过UUID获取可写的Characteristic
             characteristic.setValue(text.getBytes()); //单次最多20个字节
             mBluetoothGatt.writeCharacteristic(characteristic);
         }
@@ -176,17 +192,25 @@ public class BleClientActivity extends Activity {
 
     // 设置通知Characteristic变化会回调->onCharacteristicChanged()
     public void setNotify(View view) {
-        BluetoothGattService service = getGattService(BleServerActivity.UUID_SERVICE);
+        BluetoothGattService service = getGattService(UARTSERVICE_SERVICE_UUID);
         if (service != null) {
             // 设置Characteristic通知
-            BluetoothGattCharacteristic characteristic = service.getCharacteristic(BleServerActivity.UUID_CHAR_READ_NOTIFY);//通过UUID获取可通知的Characteristic
+            BluetoothGattCharacteristic characteristic = service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);//通过UUID获取可通知的Characteristic
             mBluetoothGatt.setCharacteristicNotification(characteristic, true);
 
             // 向Characteristic的Descriptor属性写入通知开关，使蓝牙设备主动向手机发送数据
-            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(BleServerActivity.UUID_DESC_NOTITY);
+//            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UART_TX_CHARACTERISTIC_UUID);
             // descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE);//和通知类似,但服务端不主动发数据,只指示客户端读取数据
-            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            mBluetoothGatt.writeDescriptor(descriptor);
+//            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+//            mBluetoothGatt.writeDescriptor(descriptor);
+
+            List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
+            for (BluetoothGattDescriptor descriptor : descriptors) {
+                if (descriptor.setValue(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)) {
+                    mBluetoothGatt.writeDescriptor(descriptor);
+                    Log.d(TAG, "startRead: " + "监听收数据");
+                }
+            }
         }
     }
 
