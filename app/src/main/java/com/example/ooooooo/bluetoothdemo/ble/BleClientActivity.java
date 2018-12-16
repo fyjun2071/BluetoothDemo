@@ -34,15 +34,15 @@ public class BleClientActivity extends Activity {
     /**
      * uart服务
      */
-    public final static UUID UARTSERVICE_SERVICE_UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+    public final static UUID UARTSERVICE_SERVICE_UUID = UUID.fromString("00001124-0000-1000-8000-00805F9B34FB");
     /**
      * 写
      */
-    public final static UUID UART_RX_CHARACTERISTIC_UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+    public final static UUID UART_RX_CHARACTERISTIC_UUID = UUID.fromString("00001123-0000-1000-8000-00805F9B34FB");
     /**
      * 读
      */
-    public final static UUID UART_TX_CHARACTERISTIC_UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
+    public final static UUID UART_TX_CHARACTERISTIC_UUID = UUID.fromString("00001122-0000-1000-8000-00805F9B34FB");
 
     private EditText mWriteET;
     private TextView mTips;

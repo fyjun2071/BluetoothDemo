@@ -19,6 +19,8 @@ import android.os.Bundle;
 import android.os.ParcelUuid;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.example.ooooooo.bluetoothdemo.APP;
@@ -32,13 +34,15 @@ import java.util.UUID;
  */
 public class BleServerActivity extends Activity {
     public static final UUID UUID_SERVICE = UUID.fromString("00001124-0000-1000-8000-00805F9B34FB"); //自定义UUID
-    public static final UUID UUID_CHAR_READ_NOTIFY = UUID.fromString("11000000-0000-0000-0000-000000000000");
-    public static final UUID UUID_DESC_NOTITY = UUID.fromString("11100000-0000-0000-0000-000000000000");
-    public static final UUID UUID_CHAR_WRITE = UUID.fromString("00001124-0000-1000-8000-00805F9B34FB");
+    public static final UUID UUID_CHAR_READ_NOTIFY = UUID.fromString("00001122-0000-1000-8000-00805F9B34FB");
+    public static final UUID UUID_DESC_NOTITY = UUID.fromString("00001122-0000-1000-8000-00805F9B34FB");
+    public static final UUID UUID_CHAR_WRITE = UUID.fromString("00001123-0000-1000-8000-00805F9B34FB");
     private static final String TAG = BleServerActivity.class.getSimpleName();
     private TextView mTips;
+    private EditText mWriteET;
     private BluetoothLeAdvertiser mBluetoothLeAdvertiser; // BLE广播
     private BluetoothGattServer mBluetoothGattServer; // BLE服务端
+    private BluetoothDevice mDevice;
 
     // BLE广播Callback
     private AdvertiseCallback mAdvertiseCallback = new AdvertiseCallback() {
@@ -57,6 +61,7 @@ public class BleServerActivity extends Activity {
     private BluetoothGattServerCallback mBluetoothGattServerCallback = new BluetoothGattServerCallback() {
         @Override
         public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
+            BleServerActivity.this.mDevice = device;
             Log.i(TAG, String.format("onConnectionStateChange:%s,%s,%s,%s", device.getName(), device.getAddress(), status, newState));
             logTv(String.format(status == 0 ? (newState == 2 ? "与[%s]连接成功" : "与[%s]连接断开") : ("与[%s]连接出错,错误码:" + status), device));
         }
@@ -141,6 +146,7 @@ public class BleServerActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bleserver);
         mTips = findViewById(R.id.tv_tips);
+        mWriteET = findViewById(R.id.et_write);
         BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 //        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -191,6 +197,13 @@ public class BleServerActivity extends Activity {
             mBluetoothLeAdvertiser.stopAdvertising(mAdvertiseCallback);
         if (mBluetoothGattServer != null)
             mBluetoothGattServer.close();
+    }
+
+    // 注意：连续频繁读写数据容易失败，读写操作间隔最好200ms以上，或等待上次回调完成后再进行下次读写操作！
+    // 写入数据成功会回调->onCharacteristicWrite()
+    public void write(View view) {
+        String text = mWriteET.getText().toString();
+        mBluetoothGattServer.sendResponse(mDevice, 1, BluetoothGatt.GATT_SUCCESS, 0, text.getBytes()); // 响应客户端
     }
 
     private void logTv(final String msg) {
