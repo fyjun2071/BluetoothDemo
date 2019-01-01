@@ -20,8 +20,12 @@ import android.widget.TextView;
 import com.example.ooooooo.bluetoothdemo.APP;
 import com.example.ooooooo.bluetoothdemo.R;
 
+import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -34,21 +38,23 @@ public class BleClientActivity extends Activity {
     /**
      * uart服务
      */
-    public final static UUID UARTSERVICE_SERVICE_UUID = UUID.fromString("00001124-0000-1000-8000-00805F9B34FB");
+    public final static UUID UARTSERVICE_SERVICE_UUID = UUID.fromString("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
     /**
      * 写
      */
-    public final static UUID UART_RX_CHARACTERISTIC_UUID = UUID.fromString("00001123-0000-1000-8000-00805F9B34FB");
+    public final static UUID UART_RX_CHARACTERISTIC_UUID = UUID.fromString("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
     /**
      * 读
      */
-    public final static UUID UART_TX_CHARACTERISTIC_UUID = UUID.fromString("00001122-0000-1000-8000-00805F9B34FB");
+    public final static UUID UART_TX_CHARACTERISTIC_UUID = UUID.fromString("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
 
     private EditText mWriteET;
     private TextView mTips;
     private BleDevAdapter mBleDevAdapter;
     private BluetoothGatt mBluetoothGatt;
     private boolean isConnected = false;
+
+    private Map<String, List<String>> readableCharacteristicMap = new HashMap<>();
 
     // 与服务端连接的Callback
     public BluetoothGattCallback mBluetoothGattCallback = new BluetoothGattCallback() {
@@ -72,13 +78,45 @@ public class BleClientActivity extends Activity {
             if (status == BluetoothGatt.GATT_SUCCESS) { //BLE服务发现成功
                 // 遍历获取BLE服务Services/Characteristics/Descriptors的全部UUID
                 for (BluetoothGattService service : gatt.getServices()) {
-                    StringBuilder allUUIDs = new StringBuilder("UUIDs={\nS=" + service.getUuid().toString());
+                    String serviceUUID = service.getUuid().toString();
+                    StringBuilder allUUIDs = new StringBuilder("UUIDs={\nS=" + serviceUUID);
                     for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
-                        allUUIDs.append(",\nC=").append(characteristic.getUuid());
-                        for (BluetoothGattDescriptor descriptor : characteristic.getDescriptors())
+                        allUUIDs.append(",\nC=")
+                                .append(characteristic.getUuid())
+                                .append(",").append(characteristic.getProperties());
+                        if ((BluetoothGattCharacteristic.PROPERTY_READ & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",read");
+                            if (!readableCharacteristicMap.containsKey(serviceUUID)) {
+                                readableCharacteristicMap.put(serviceUUID, new ArrayList<String>());
+                            }
+
+                            readableCharacteristicMap.get(serviceUUID).add(characteristic.getUuid().toString());
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",write_no_response");
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_WRITE & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",write");
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_NOTIFY & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",notfiy");
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_INDICATE & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",indicate");
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_SIGNED_WRITE & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",signed_write");
+                        }
+                        if ((BluetoothGattCharacteristic.PROPERTY_EXTENDED_PROPS & characteristic.getProperties()) > 0) {
+                            allUUIDs.append(",extended_props");
+                        }
+
+                        for (BluetoothGattDescriptor descriptor : characteristic.getDescriptors()) {
                             allUUIDs.append(",\nD=").append(descriptor.getUuid());
+                            descriptor.getPermissions();
+                        }
                     }
-                    allUUIDs.append("}");
+                    allUUIDs.append("\n}");
                     Log.i(TAG, "onServicesDiscovered:" + allUUIDs.toString());
                     logTv("发现服务" + allUUIDs);
                 }
@@ -88,8 +126,9 @@ public class BleClientActivity extends Activity {
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
             UUID uuid = characteristic.getUuid();
-            String valueStr = new String(characteristic.getValue());
-            Log.i(TAG, String.format("onCharacteristicRead:%s,%s,%s,%s,%s", gatt.getDevice().getName(), gatt.getDevice().getAddress(), uuid, valueStr, status));
+            String valueStr = new String(characteristic.getValue(), Charset.forName("GBK"));
+            Log.i(TAG, String.format("onCharacteristicRead:%s,%s,%s,%s,%s,%s", gatt.getDevice().getName(),
+                    gatt.getDevice().getAddress(), uuid, valueStr, status, Arrays.toString(characteristic.getValue())));
             logTv("读取Characteristic[" + uuid + "]:\n" + valueStr);
         }
 
@@ -175,6 +214,18 @@ public class BleClientActivity extends Activity {
         if (service != null) {
             BluetoothGattCharacteristic characteristic = service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);//通过UUID获取可读的Characteristic
             mBluetoothGatt.readCharacteristic(characteristic);
+        }
+
+        for (Map.Entry<String, List<String>> entry : readableCharacteristicMap.entrySet()) {
+            Log.e(TAG, "read service:" + entry.getKey());
+            BluetoothGattService s = getGattService(UUID.fromString(entry.getKey()));
+            if (s == null) {
+                continue;
+            }
+            for (String item : entry.getValue()) {
+                BluetoothGattCharacteristic c = s.getCharacteristic(UUID.fromString(item));
+                mBluetoothGatt.readCharacteristic(c);
+            }
         }
     }
 
